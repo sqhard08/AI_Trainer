@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+import requests
+import json
+import time
+import random
+import logging
+from datetime import datetime
+
+# Настройка логирования
+logging.basicConfig(filename='/root/gainet.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Функция для вывода и логирования информации
+def log_and_print(message):
+    print(message)
+    logging.info(message)
+
+# Функция для отправки запроса и получения ответа
+def send_request(question):
+    url = "https://0x54b04b9b9deb7bdbaea79be1b1ca36dc9d933192.us.gaianet.network/v1/chat/completions"
+    headers = {
+        'accept': 'application/json',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": question}
+        ]
+    }
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        response.raise_for_status()  # Проверка на ошибки HTTP
+        return response.json()['choices'][0]['message']['content']
+    except requests.RequestException as e:
+        log_and_print(f"Error sending request: {e}")
+        return None
+
+# Функция для генерации следующего вопроса на основе предыдущего ответа
+def generate_next_question(previous_answer):
+    prompt = f"Based on this answer: '{previous_answer}', generate a new question about nature in the world."
+    return send_request(prompt)
+
+# Начальный вопрос
+current_question = "What aspect of nature do you find the most amazing in the world?"
+
+log_and_print("Starting the Gainet script")
+
+while True:
+    try:
+        # Отправляем текущий вопрос и получаем ответ
+        answer = send_request(current_question)
+        if answer:
+            log_and_print(f"Question: {current_question}")
+            log_and_print(f"Answer: {answer}")
+
+            # Генерируем следующий вопрос
+            current_question = generate_next_question(answer)
+        else:
+            log_and_print("Failed to get an answer. Retrying with the same question.")
+
+        # Выбираем случайный интервал
+        interval = random.choice([4, 7, 10, 15, 18])
+        log_and_print(f"Waiting for {interval} minutes before the next question...")
+
+        # Ждем выбранный интервал
+        time.sleep(interval * 60)
+
+    except Exception as e:
+        log_and_print(f"An unexpected error occurred: {e}")
+        log_and_print("Waiting for 5 minutes before retrying...")
